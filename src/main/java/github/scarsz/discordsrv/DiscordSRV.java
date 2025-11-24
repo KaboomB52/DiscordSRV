@@ -2118,8 +2118,14 @@ public class DiscordSRV extends JavaPlugin {
             // resolve username to player/uuid
             //TODO resolve name to online uuid when offline player is present
             // (can't do it by calling Bukkit.getOfflinePlayer(username).getUniqueId() because bukkit just returns the offline-mode CraftPlayer)
-            player = Bukkit.getOfflinePlayer(username);
-            uuid = player.getUniqueId();
+
+            if(PlayerUtil.getUUIDFromMojang(username) != null) {
+                uuid = PlayerUtil.getUUIDFromMojang(username);
+            } else {
+                player = Bukkit.getOfflinePlayer(username);
+                uuid = player.getUniqueId();
+            }
+
             offline = PlayerUtil.uuidIsOffline(uuid);
         }
         if (StringUtils.isBlank(username) && uuid != null) {

@@ -26,6 +26,8 @@ import github.scarsz.discordsrv.hooks.PluginHook;
 import github.scarsz.discordsrv.hooks.vanish.VanishHook;
 import net.dv8tion.jda.api.entities.User;
 import org.apache.commons.lang3.StringUtils;
+import org.bson.Document;
+import org.bson.json.JsonParseException;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.Sound;
@@ -33,10 +35,16 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class PlayerUtil {
 
@@ -108,7 +116,7 @@ public class PlayerUtil {
 
     /**
      * Notify online players of mentions after a message was broadcasted to them
-     * Uses Java 8's Steam API {@link java.util.stream.Stream#filter(Predicate)} with the given predicate to filter out online players that didn't get the message this ding is for
+     * Uses Java 8's Steam API {@link Stream#filter(Predicate)} with the given predicate to filter out online players that didn't get the message this ding is for
      * @param predicate predicate to determine whether the player got the message this ding was triggered for
      * @param message the message to be searched for players to ding
      */
@@ -251,6 +259,39 @@ public class PlayerUtil {
      */
     public static boolean uuidIsOffline(UUID uuid) {
         return uuid.version() == 3;
+    }
+
+    /**
+     * Returns a player's uuid from Mojang's api, allowing offlineplayers to have uuids without needing to use OfflinePOlayer classes.
+     * @param username the Player's username to get the uuid from
+     * @return the uuid found for the player
+     */
+    public static UUID getUUIDFromMojang(String username) {
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.mojang.com/users/profiles/minecraft/" + username))
+                    .GET()
+                    .build();
+
+            Document response = Document.parse(client.send(request, HttpResponse.BodyHandlers.ofString()).body());
+
+            if (response.containsKey("errorMessage")) {
+                System.err.println(response.get("errorMessage"));
+                return null;
+            }
+
+            return UUID.fromString(response.getString("id").replaceFirst(
+                    "(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})",
+                    "$1-$2-$3-$4-$5"));
+
+        } catch (IOException | InterruptedException e) {
+            System.err.println("Request failed: " + e.getMessage());
+        } catch (JsonParseException e) {
+            System.err.println("Invalid JSON format: " + e.getMessage());
+        }
+
+        return null;
     }
 
 }
